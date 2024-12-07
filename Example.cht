@@ -1,0 +1,15 @@
+# Crochet demo
+
+origin
+    spawn
+        _ -> 20 fib1 20 fib2
+    pop
+        _ -> @ ! 0
+
+fib1
+    spawn
+        0 -> 0
+        1 -> 1
+        _ -> -1 fib -1 fib 0
+    pop
+        _ -> +@
