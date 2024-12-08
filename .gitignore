@@ -1,6 +1,8 @@
 .mypy_cache
 .vscode
+out
 
 *
 !/**/
 !*.*
+!Makefile
