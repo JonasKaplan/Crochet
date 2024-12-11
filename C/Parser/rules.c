@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static GenericStatus rule_set_find_open(RuleSet* set, u64 id, ActionSequence** out) {
+static ActionSequence* rule_set_find_open(RuleSet* set, u64 id) {
     u8 hashed_id;
     u32 current_table;
     ActionSequence* current_sequence;
@@ -14,21 +14,18 @@ static GenericStatus rule_set_find_open(RuleSet* set, u64 id, ActionSequence** o
     while (current_table < set->count) {
         current_sequence = &set->rules[current_table][hashed_id];
         if (current_sequence->actions == NULL) {
-            *out = current_sequence;
-            return GS_OK;
+            return current_sequence;
         }
         ++current_table;
     }
+
     if (set->count == set->capacity) {
-        _array_extend(set, rules, {});
+        resize_array_M(*set->rules, set->rules, set->capacity, 2 * set->capacity);
+        set->capacity *= 2;
     }
-    set->rules[current_table] = calloc(UINT8_MAX, sizeof(*set->rules[current_table]));
-    if (set->rules[current_table] == NULL) {
-        return GS_OUT_OF_MEMORY;
-    }
+    set->rules[current_table] = heap_array_M(*set->rules[current_table], UINT8_MAX);
     ++set->count;
-    *out = &set->rules[current_table][hashed_id];
-    return GS_OK;
+    return &set->rules[current_table][hashed_id];
 }
 
 GenericStatus rules_rule_set_build(RuleSet* set, const LineSequence* source, u32* last_line_index) {
@@ -39,7 +36,9 @@ GenericStatus rules_rule_set_build(RuleSet* set, const LineSequence* source, u32
     ActionSequence* sequence;
     GenericStatus status;
 
-    _array_init(set, rules, {});
+    set->count = 0;
+    set->capacity = DEFAULT_ARRAY_CAPACITY;
+    set->rules = heap_array_M(*set->rules, set->capacity);
     set->fallback.actions = NULL;
     line_index = 0;
     while ((line_index < source->count) && (strncmp(source->lines[line_index].chars, "        ", 8) == 0)) {
@@ -70,12 +69,8 @@ GenericStatus rules_rule_set_build(RuleSet* set, const LineSequence* source, u32
                 rules_rule_set_clean(set);
                 return GS_BAD_INPUT;
             }
-            status = rule_set_find_open(set, constant, &sequence);
+            sequence = rule_set_find_open(set, constant);
             sequence->id = constant;
-            if (status != GS_OK) {
-                rules_rule_set_clean(set);
-                return status;
-            }
             char_index += count;
         } else {
             rules_rule_set_clean(set);

@@ -1,18 +1,18 @@
 #ifndef CROCHET_PARSER_ACTIONS
 #define CROCHET_PARSER_ACTIONS
 
-#include "../base-defs.h"
+#include "../base.h"
 
 typedef enum {
     AT_SHOW,
     AT_CALL,
     AT_OPERATE_REF,
+    AT_OPERATE_GET,
     AT_OPERATE_CONST,
 } ActionType;
 
 typedef struct {
     u32 count;
-    u32 capacity;
     char* chars;
 } Identifier;
 

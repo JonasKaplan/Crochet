@@ -1,0 +1,12 @@
+origin
+    spawn
+        _ -> & act
+    pop
+        _ -> 0
+
+act
+    spawn
+        48 -> 0 !
+        _ -> 1 ! act
+    pop
+        _ -> @

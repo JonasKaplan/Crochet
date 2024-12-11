@@ -1,7 +1,7 @@
 #ifndef CROCHET_PARSER_NODES
 #define CROCHET_PARSER_NODES
 
-#include "../base-defs.h"
+#include "../base.h"
 #include "rules.h"
 #include "lines.h"
 

@@ -2,11 +2,11 @@
 
 origin
     spawn
-        _ -> 20 fib1 20 fib2
+        _ -> 40 fib
     pop
         _ -> @ ! 0
 
-fib1
+fib
     spawn
         0 -> 0
         1 -> 1

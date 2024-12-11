@@ -1,7 +1,7 @@
 #ifndef CROCHET_PARSER_RULE_SET
 #define CROCHET_PARSER_RULE_SET
 
-#include "../base-defs.h"
+#include "../base.h"
 #include "actions.h"
 #include "lines.h"
 

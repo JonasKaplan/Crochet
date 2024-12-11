@@ -9,9 +9,12 @@ GenericStatus lines_line_array_build(LineSequence* sequence, const char* file) {
     char current_char;
     Line* line;
 
-    _array_init(sequence, lines, {});
+    sequence->count = 0;
+    sequence->capacity = DEFAULT_ARRAY_CAPACITY;
+    sequence->lines = heap_array_M(Line, sequence->capacity);
     source = fopen(file, "r");
     if (source == NULL) {
+        free(sequence->lines);
         return GS_NO_SUCH_FILE;
     }
     current_char = '\n';
@@ -20,17 +23,19 @@ GenericStatus lines_line_array_build(LineSequence* sequence, const char* file) {
             continue;
         } else if (current_char == '\n') {
             if (sequence->count == sequence->capacity) {
-                _array_extend(sequence, lines, {});
+                resize_array_M(Line, sequence->lines, sequence->capacity, 2 * sequence->capacity);
+                sequence->capacity *= 2;
             }
             line = &sequence->lines[sequence->count];
-            _array_init(line, chars, lines_line_array_clean(sequence));
+            line->count = 0;
+            line->capacity = DEFAULT_ARRAY_CAPACITY;
+            line->chars = heap_array_M(char, line->capacity);
             ++sequence->count;
         } else {
-            line = &sequence->lines[sequence->count - 1];
             // Check against `capacity - 1` to ensure there's always a null terminator
             if (line->count == line->capacity - 1) {
-                _array_extend(line, chars, lines_line_array_clean(sequence));
-                memset(&line->chars[line->count], 0, line->capacity - line->count);
+                resize_array_M(char, line->chars, line->capacity, line->capacity * 2);
+                line->capacity *= 2;
             }
             line->chars[line->count++] = current_char;
         }

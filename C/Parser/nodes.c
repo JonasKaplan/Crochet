@@ -19,7 +19,7 @@ static u8 hash(const char* str) {
     return result;
 }
 
-static GenericStatus node_set_find_open(NodeSet* set, const char* id, Node** out) {
+static Node* node_set_find_open(NodeSet* set, const char* id) {
     u8 hashed_id;
     u32 current_table;
     Node* current_node;
@@ -29,21 +29,18 @@ static GenericStatus node_set_find_open(NodeSet* set, const char* id, Node** out
     while (current_table < set->count) {
         current_node = &set->nodes[current_table][hashed_id];
         if (current_node->spawn_rules.rules == NULL) {
-            *out = current_node;
-            return GS_OK;
+            return current_node;
         }
         ++current_table;
     }
+
     if (set->count == set->capacity) {
-        _array_extend(set, nodes, {});
+        resize_array_M(*set->nodes, set->nodes, set->capacity, 2 * set->capacity);
+        set->capacity *= 2;
     }
-    set->nodes[current_table] = calloc(UINT8_MAX, sizeof(*set->nodes[current_table]));
-    if (set->nodes[current_table] == NULL) {
-        return GS_OUT_OF_MEMORY;
-    }
+    set->nodes[current_table] = heap_array_M(*set->nodes[current_table], UINT8_MAX);
     ++set->count;
-    *out = &set->nodes[current_table][hashed_id];
-    return GS_OK;
+    return &set->nodes[current_table][hashed_id];
 }
 
 GenericStatus nodes_node_set_build(NodeSet* set, const LineSequence* sequence) {
@@ -54,7 +51,9 @@ GenericStatus nodes_node_set_build(NodeSet* set, const LineSequence* sequence) {
     u32 i, j, k, l, m, line_index, last_line_index, count;
     GenericStatus status;
 
-    _array_init(set, nodes, {});
+    set->count = 0;
+    set->capacity = DEFAULT_ARRAY_CAPACITY;
+    set->nodes = heap_array_M(*set->nodes, set->capacity);
     line_index = 0;
     while (line_index < sequence->count) {
         line = &sequence->lines[line_index];
@@ -80,11 +79,7 @@ GenericStatus nodes_node_set_build(NodeSet* set, const LineSequence* sequence) {
             nodes_node_set_clean(set);
             return GS_BAD_INPUT;
         }
-        status = node_set_find_open(set, identifier, &node);
-        if (status != GS_OK) {
-            nodes_node_set_clean(set);
-            return GS_BAD_INPUT;
-        }
+        node = node_set_find_open(set, identifier);
         node->name = calloc(line->count + 1, sizeof(*node->name));
         if (node->name == NULL) {
             nodes_node_set_clean(set);
@@ -131,6 +126,10 @@ GenericStatus nodes_node_set_build(NodeSet* set, const LineSequence* sequence) {
         }
         line_index += last_line_index;
     }
+
+    // Behold, the great nest
+    // Check that every identifier is valid
+    // Looping through hash sets is expensive as it turns out
     for (i = 0; i < set->count; ++i) {
         for (j = 0; j < UINT8_MAX; ++j) {
             if (set->nodes[i][j].name != NULL) {

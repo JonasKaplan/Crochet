@@ -24,9 +24,9 @@ static GenericStatus action_build(Action* action, const char* source) {
     } else if (is_alpha(first_char)) {
         action->type = AT_CALL;
         identifier = &action->identifier;
-        _array_init_fixed(identifier, chars, count + 1, {});
+        identifier->chars = heap_array_M(char, count + 1);
+        identifier->count = count;
         memcpy(identifier->chars, source, count);
-        --identifier->count;
         return GS_OK;
     }
 
@@ -43,6 +43,11 @@ static GenericStatus action_build(Action* action, const char* source) {
             return GS_BAD_INPUT;
         }
         action->type = AT_OPERATE_REF;
+    } else if (source[0] == '&') {
+        if (count != 1) {
+            return GS_BAD_INPUT;
+        }
+        action->type = AT_OPERATE_GET;
     } else if (is_digit(source[0])) {
         if (sscanf(source, "%lu", &constant) != 1) {
             return GS_BAD_INPUT;
@@ -63,11 +68,15 @@ static GenericStatus action_build(Action* action, const char* source) {
 GenericStatus actions_action_sequence_build(ActionSequence* sequence, const char* source) {
     u32 i;
     GenericStatus status;
-    _array_init(sequence, actions, {});
+
+    sequence->count = 0;
+    sequence->capacity = DEFAULT_ARRAY_CAPACITY;
+    sequence->actions = heap_array_M(*sequence->actions, sequence->capacity);
     i = 0;
     while (source[i] != '\0') {
         if (sequence->count == sequence->capacity) {
-            _array_extend(sequence, actions, actions_action_sequence_clean(sequence));
+            resize_array_M(*sequence->actions, sequence->actions, sequence->capacity, 2 * sequence->capacity);
+            sequence->capacity *= 2;
         }
         status = action_build(&sequence->actions[sequence->count], &source[i]);
         if (status != GS_OK) {

@@ -1,7 +1,7 @@
 #ifndef CROCHET_PARSER_PARSER
 #define CROCHET_PARSER_PARSER
 
-#include "../base-defs.h"
+#include "../base.h"
 #include "nodes.h"
 
 typedef enum {

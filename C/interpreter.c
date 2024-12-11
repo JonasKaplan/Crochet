@@ -4,208 +4,113 @@
 #include <stdlib.h>
 #include "Parser/parser.h"
 
-typedef struct _QueueNode {
-    u64 value;
-    struct _QueueNode* next;
-} QueueNode;
+#define STACK_SIZE 8192
 
 typedef struct {
-    QueueNode* head;
-    QueueNode* tail;
-} Queue;
+    const Node* node;
+    u64 value;
+    u32 active_children;
+    u32 capacity;
+    u64* results;
+} RuntimeNode;
 
-typedef enum {
-    QS_OK,
-    QS_OUT_OF_MEMORY,
-    QS_EMPTY,
-} QueueStatus;
+static GenericStatus node_spawn(const Node* node, const NodeSet* set, u64 value, u16 depth, u64* result);
 
-static QueueStatus queue_push(Queue* queue, u64 value) {
-    QueueNode *new_node, *other;
+static GenericStatus node_process_action(RuntimeNode* node, Action* action, u64 trigger, u16 depth, const NodeSet* set) {
+    u64 operand;
 
-    new_node = calloc(1, sizeof(*new_node));
-    if (new_node == NULL) {
-        new_node = queue->head;
-        while (new_node != NULL) {
-            other = new_node->next;
-            free(new_node);
-            new_node = other;
-        }
-        return QS_OUT_OF_MEMORY;
+    switch (action->type) {
+        case AT_SHOW:
+            printf("%lu\n", node->value);
+        return GS_OK;
+
+        case AT_CALL:
+            if (node->active_children == node->capacity) {
+                resize_array_M(*node->results, node->results, node->capacity, 2 * node->capacity);
+                node->capacity *= 2;
+            }
+            node_spawn(nodes_node_set_get(set, action->identifier.chars), set, node->value, depth + 1, &node->results[node->active_children]);
+            ++node->active_children;
+        return GS_OK;
+
+        case AT_OPERATE_REF:
+            operand = trigger;
+        break;
+
+        case AT_OPERATE_GET:
+            operand = getchar();
+        break;
+
+        case AT_OPERATE_CONST:
+            operand = action->constant;
+        break;
     }
-    new_node->value = value;
-    new_node->next = NULL;
-    if (queue->head == NULL) {
-        queue->head = new_node;
-        queue->tail = new_node;
-        return QS_OK;
+
+    switch (action->operator) {
+        case '=':
+            node->value = operand;
+        return GS_OK;
+
+        case '+':
+            node->value += operand;
+        return GS_OK;
+
+        case '-':
+            node->value -= operand;
+        return GS_OK;
+
+        case '*':
+            node->value *= operand;
+        return GS_OK;
+
+        case '/':
+            if (operand == 0) {
+                return GS_BAD_INPUT;
+            }
+            node->value /= operand;
+        return GS_OK;
     }
-    queue->tail->next = new_node;
-    queue->tail = new_node;
-    return QS_OK;
+
+    return GS_BAD_INPUT;
 }
 
-static QueueStatus queue_pop(Queue* queue, u64* value) {
-    if (queue->head == NULL) {
-        return QS_EMPTY;
+static GenericStatus node_spawn(const Node* node, const NodeSet* set, u64 value, u16 depth, u64* result) {
+    if (depth == STACK_SIZE) {
+        fprintf(stderr, "Stack overflow\n");
+        // Very temporary, fix later
+        exit(EXIT_FAILURE);
     }
-    QueueNode* popped;
-
-    popped = queue->head;
-    if (queue->head == queue->tail) {
-        queue->tail = NULL;
-    }
-    queue->head = popped->next;
-    *value = popped->value;
-    free(popped);
-    return QS_OK;
-}
-
-
-static GenericStatus node_spawn(const Node* node, const NodeSet* set, u64 value, u64* result) {
-    u32 i;
-    u64 current_result, current_value;
-    const ActionSequence *spawn_rule, *pop_rule;
-    Action* action;
+    RuntimeNode runtime_node;
+    const ActionSequence* sequence;
     GenericStatus status;
-    Queue returned;
+    u32 i;
 
-    current_value = value;
-    returned.head = NULL;
-    returned.tail = NULL;
-    spawn_rule = rules_rule_set_get(&node->spawn_rules, current_value);
-    for (i = 0; i < spawn_rule->count; ++i) {
-        action = &spawn_rule->actions[i];
-        switch (action->type) {
-            case AT_SHOW:
-                printf("%lu\n", current_value);
-            break;
+    runtime_node.node = node;
+    runtime_node.value = value;
+    runtime_node.active_children = 0;
+    runtime_node.capacity = DEFAULT_ARRAY_CAPACITY;
+    runtime_node.results = heap_array_M(*runtime_node.results, runtime_node.capacity);
 
-            case AT_CALL:
-                status = node_spawn(nodes_node_set_get(set, action->identifier.chars), set, current_value, &current_result);
-                if (status != GS_OK) {
-                    return status;
-                }
-                queue_push(&returned, current_result);
-            break;
-
-            case AT_OPERATE_REF:
-                switch (action->operator) {
-                    case '=':
-                        current_value = value;
-                    break;
-
-                    case '+':
-                        current_value += value;
-                    break;
-
-                    case '-':
-                        current_value -= value;
-                    break;
-
-                    case '*':
-                        current_value *= value;
-                    break;
-
-                    case '/':
-                        current_value /= value;
-                    break;
-                }
-            break;
-
-            case AT_OPERATE_CONST:
-                switch (action->operator) {
-                    case '=':
-                        current_value = action->constant;
-                    break;
-
-                    case '+':
-                        current_value += action->constant;
-                    break;
-
-                    case '-':
-                        current_value -= action->constant;
-                    break;
-
-                    case '*':
-                        current_value *= action->constant;
-                    break;
-
-                    case '/':
-                        current_value /= action->constant;
-                    break;
-                }
-            break;
+    sequence = rules_rule_set_get(&node->spawn_rules, runtime_node.value);
+    for (i = 0; i < sequence->count; ++i) {
+        status = node_process_action(&runtime_node, &sequence->actions[i], value, depth, set);
+        if (status != GS_OK) {
+            return status;
         }
     }
-    while (queue_pop(&returned, &current_result) == QS_OK) {
-        pop_rule = rules_rule_set_get(&node->pop_rules, current_result);
-        for (i = 0; i < pop_rule->count; ++i) {
-            action = &pop_rule->actions[i];
-            switch (action->type) {
-                case AT_SHOW:
-                    printf("%lu\n", current_value);
-                break;
 
-                case AT_CALL:
-                    status = node_spawn(nodes_node_set_get(set, action->identifier.chars), set, current_value, &current_result);
-                    if (status != GS_OK) {
-                        return status;
-                    }
-                    queue_push(&returned, current_result);
-                break;
-
-                case AT_OPERATE_REF:
-                    switch (action->operator) {
-                        case '=':
-                            current_value = current_result;
-                        break;
-
-                        case '+':
-                            current_value += current_result;
-                        break;
-
-                        case '-':
-                            current_value -= current_result;
-                        break;
-
-                        case '*':
-                            current_value *= current_result;
-                        break;
-
-                        case '/':
-                            current_value /= current_result;
-                        break;
-                    }
-                break;
-
-                case AT_OPERATE_CONST:
-                    switch (action->operator) {
-                        case '=':
-                            current_value = action->constant;
-                        break;
-
-                        case '+':
-                            current_value += action->constant;
-                        break;
-
-                        case '-':
-                            current_value -= action->constant;
-                        break;
-
-                        case '*':
-                            current_value *= action->constant;
-                        break;
-
-                        case '/':
-                            current_value /= action->constant;
-                        break;
-                    }
-                break;
+    while (runtime_node.active_children != 0) {
+        --runtime_node.active_children;
+        sequence = rules_rule_set_get(&node->pop_rules, runtime_node.results[runtime_node.active_children]);
+        for (i = 0; i < sequence->count; ++i) {
+            status = node_process_action(&runtime_node, &sequence->actions[i], runtime_node.results[runtime_node.active_children], depth, set);
+            if (status != GS_OK) {
+                return status;
             }
         }
     }
-    *result = current_value;
+    *result = runtime_node.value;
+    free(runtime_node.results);
     return GS_OK;
 }
 
@@ -217,19 +122,19 @@ InterpreterStatus crochet_interpret(const char* file) {
 
     parser_status = parser_parse(&set, file);
     if (parser_status == PS_OUT_OF_MEMORY) {
-        printf("Out of memory\n");
+        fprintf(stderr, "Out of memory\n");
     } else if (parser_status == PS_NO_SUCH_FILE) {
-        printf("No such file \"%s\"\n", file);
+        fprintf(stderr, "No such file \"%s\"\n", file);
     } else if (parser_status == PS_PARSE_ERROR) {
-        printf("Parsing error\n");
+        fprintf(stderr, "Parsing error\n");
     }
     if (parser_status != PS_OK) {
         return IS_ERR;
     }
 
-    status = node_spawn(nodes_node_set_get(&set, "origin"), &set, 0, &result);
+    status = node_spawn(nodes_node_set_get(&set, "origin"), &set, 0, 0, &result);
     if (status != GS_OK) {
-        printf("Runtime error\n");
+        fprintf(stderr, "Runtime error\n");
         return IS_ERR;
     }
     nodes_node_set_clean(&set);
