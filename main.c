@@ -1,8 +1,8 @@
 #include "C/crochet.h"
 
-int main(void) {
+int main(int argc, char** argv) {
     InterpreterStatus status;
-    status = crochet_interpret("Examples/TruthMachine.cht");
+    status = crochet_interpret(argv[1]);
     switch (status) {
         case IS_OK:
             return 0;

@@ -1,5 +1,5 @@
 CC = clang
-CFLAGS = -g -Wall -Wextra -Wpedantic -Werror
+CFLAGS = -g -Wall -Wextra -Wpedantic -Werror -pthread
 OUT = ./out
 LIBRARY = libcrochet.a
 

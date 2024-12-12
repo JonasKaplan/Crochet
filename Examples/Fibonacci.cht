@@ -2,7 +2,7 @@
 
 origin
     spawn
-        _ -> 40 fib
+        _ -> 20 fib
     pop
         _ -> @ ! 0
 
@@ -10,6 +10,6 @@ fib
     spawn
         0 -> 0
         1 -> 1
-        _ -> -1 fib -1 fib 0
+        _ -> @ -1 fib -1 fib 0
     pop
         _ -> +@

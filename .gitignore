@@ -5,4 +5,5 @@
 
 .mypy_cache
 .vscode
-out
+comp.sh
+out/
