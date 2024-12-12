@@ -28,7 +28,7 @@ static ActionSequence* rule_set_find_open(RuleSet* set, u64 id) {
     return &set->rules[current_table][hashed_id];
 }
 
-GenericStatus rules_rule_set_build(RuleSet* set, const LineSequence* source, u32* last_line_index) {
+GenericStatus rules_rule_set_build(RuleSet* set, const LineSequence* source, u32 start, u32* last_line_index) {
     u32 line_index, char_index, count;
     u64 constant;
     char buf[MAX_U64_STRING_LENGTH];
@@ -52,11 +52,13 @@ GenericStatus rules_rule_set_build(RuleSet* set, const LineSequence* source, u32
             ++char_index;
             if (!is_whitespace(line->chars[char_index])) {
                 rules_rule_set_clean(set);
+                fprintf(stderr, "Expected whitespace after wildcard near line %u\n", start + line_index);
                 return GS_BAD_INPUT;
             }
         } else if (is_digit(line->chars[char_index])) {
             if (sscanf(&line->chars[char_index], "%lu", &constant) != 1) {
                 rules_rule_set_clean(set);
+                fprintf(stderr, "Bad numeric literal near line %u\n", start + line_index);
                 return GS_BAD_INPUT;
             }
             count = 0;
@@ -67,6 +69,7 @@ GenericStatus rules_rule_set_build(RuleSet* set, const LineSequence* source, u32
             sprintf(buf, "%lu", constant);
             if (strlen(buf) != count) {
                 rules_rule_set_clean(set);
+                fprintf(stderr, "Bad numeric literal near line %u\n", start + line_index);
                 return GS_BAD_INPUT;
             }
             sequence = rule_set_find_open(set, constant);
@@ -74,6 +77,7 @@ GenericStatus rules_rule_set_build(RuleSet* set, const LineSequence* source, u32
             char_index += count;
         } else {
             rules_rule_set_clean(set);
+            fprintf(stderr, "Expected rule near line %u\n", start + line_index);
             return GS_BAD_INPUT;
         }
         while (is_whitespace(line->chars[char_index])) {
@@ -81,6 +85,7 @@ GenericStatus rules_rule_set_build(RuleSet* set, const LineSequence* source, u32
         }
         if (!((line->chars[char_index] == '-') && (line->chars[char_index + 1] == '>'))) {
             rules_rule_set_clean(set);
+            fprintf(stderr, "Expected rule arrow near line %u\n", start + line_index);
             return GS_BAD_INPUT;
         }
         char_index += 3;
@@ -89,9 +94,10 @@ GenericStatus rules_rule_set_build(RuleSet* set, const LineSequence* source, u32
         }
         if (line->chars[char_index] == '\0') {
             rules_rule_set_clean(set);
+            fprintf(stderr, "Expected action sequence near line %u\n", start + line_index);
             return GS_BAD_INPUT;
         }
-        status = actions_action_sequence_build(sequence, &line->chars[char_index]);
+        status = actions_action_sequence_build(sequence, start + line_index, &line->chars[char_index]);
         if (status != GS_OK) {
             rules_rule_set_clean(set);
             return status;
@@ -100,6 +106,7 @@ GenericStatus rules_rule_set_build(RuleSet* set, const LineSequence* source, u32
     }
     if (set->fallback.actions == NULL) {
         rules_rule_set_clean(set);
+        fprintf(stderr, "Node has no wildcard match near line %u\n", start + line_index);
         return GS_BAD_INPUT;
     }
     *last_line_index = line_index;
@@ -117,8 +124,11 @@ void rules_rule_set_clean(RuleSet* set) {
         }
         free(set->rules[set->count]);
     }
-    actions_action_sequence_clean(&set->fallback);
+    if (set->fallback.actions != NULL) {
+        actions_action_sequence_clean(&set->fallback);
+    }
     free(set->rules);
+    set->rules = NULL;
 }
 
 const ActionSequence* rules_rule_set_get(const RuleSet* set, u64 id) {

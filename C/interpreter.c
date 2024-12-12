@@ -83,23 +83,23 @@ void node_apply_sequence(RuntimeNode* runtime_node, const ActionSequence* sequen
             continue;
         }
         switch (action->operator) {
-            case '=':
+            case O_SET:
                 runtime_node->value = operand;
             break;
 
-            case '+':
+            case O_ADD:
                 runtime_node->value += operand;
             break;
 
-            case '-':
+            case O_SUBTRACT:
                 runtime_node->value -= operand;
             break;
 
-            case '*':
+            case O_MULTIPLY:
                 runtime_node->value *= operand;
             break;
 
-            case '/':
+            case O_DIVIDE:
                 runtime_node->value /= operand;
             break;
         }
@@ -175,12 +175,10 @@ InterpreterStatus crochet_interpret(const char* file) {
     u32 i;
 
     status = parser_parse(&set, file);
-    if (status == PS_OUT_OF_MEMORY) {
-        fprintf(stderr, "Out of memory\n");
-    } else if (status == PS_NO_SUCH_FILE) {
+    if (status == PS_NO_SUCH_FILE) {
         fprintf(stderr, "No such file \"%s\"\n", file);
     } else if (status == PS_PARSE_ERROR) {
-        fprintf(stderr, "Parsing error\n");
+        fprintf(stderr, "Failed to parse source file \"%s\"\n", file);
     }
     if (status != PS_OK) {
         return IS_ERR;

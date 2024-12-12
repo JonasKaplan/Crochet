@@ -39,9 +39,9 @@ void* move(void* block, u64 old_block_count, u64 new_block_count, u64 block_size
     (create(1, sizeof(type)))
 
 #define heap_array_M(type, count)\
-    (create(count, sizeof(type)))
+    (create((count), sizeof(type)))
 
 #define resize_array_M(type, array, old_count, new_count)\
-    (array = move(array, old_count, new_count, sizeof(type)))
+    ((array) = move((array), (old_count), (new_count), sizeof(type)))
 
 #endif

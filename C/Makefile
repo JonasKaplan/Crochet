@@ -2,8 +2,15 @@ CC = clang
 CFLAGS = -g -Wall -Wextra -Wpedantic -Werror -pthread
 OUT = ./out
 LIBRARY = libcrochet.a
+EXECUTABLE = crochet
 
-all: $(OUT)/$(LIBRARY)
+all: $(OUT)/$(EXECUTABLE)
+
+$(OUT)/$(EXECUTABLE): $(OUT)/main.o $(OUT)/$(LIBRARY)
+	$(CC) $(CFLAGS) -o $@ $^
+
+$(OUT)/main.o: main.c output_dir
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OUT)/$(LIBRARY): $(OUT)/rules.o $(OUT)/parser.o $(OUT)/nodes.o $(OUT)/lines.o $(OUT)/actions.o $(OUT)/interpreter.o $(OUT)/base.o
 	ar rcs $@ $^

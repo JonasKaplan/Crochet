@@ -32,6 +32,11 @@ void* create(u64 block_count, u64 block_size) {
 }
 
 void* move(void* block, u64 old_block_count, u64 new_block_count, u64 block_size) {
+    if ((new_block_count == 0) || (block_size == 0)) {
+        free(block);
+        return NULL;
+    }
+
     u8* ptr;
 
     ptr = realloc(block, new_block_count * block_size);

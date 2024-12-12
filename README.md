@@ -30,6 +30,8 @@ The individual code blocks are referred to as "nodes". The first line of a node 
 
 Every node must have a `spawn` block and a `pop` block. The lines in the `spawn` and `pop` blocks are referred to as "rules". Each rule dictates the node's behaviour under some condition.
 
+Comments begin with a `#`, and are only permitted outside of nodes.
+
 ### Behaviour
 
 A node always has a single internal value that it keeps track of, stored as a 64 bit unsigned integer. This value is always 0 initially. When a node is created, it looks at the rules in the `spawn` block, and applies the rule based on the current value of the node that instantiated it. That is to say, if the node that created it had an internal value of 3, the created node would apply the spawn rule corresponding to the number 3.
@@ -77,6 +79,10 @@ two
 ```
 
 This program's behaviour is impossible to determine, because the order of execution is not guaranteed (although in practice, this is not the case, since starting threads takes time).
+
+## Usage
+
+To use the Crochet language, include the header, first build the code using the provided Makefile. Then, either include the `C/crochet.h` header and link the created `libcrochet.a` file during compilation, or use the created executable, with the name of a `.cht` file to interpret.
 
 ## Credits
 

@@ -7,7 +7,6 @@
 typedef enum {
     PS_OK,
     PS_NO_SUCH_FILE,
-    PS_OUT_OF_MEMORY,
     PS_PARSE_ERROR,
 } ParserStatus;
 

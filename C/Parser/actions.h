@@ -11,6 +11,14 @@ typedef enum {
     AT_OPERATE_CONST,
 } ActionType;
 
+typedef enum {
+    O_SET,
+    O_ADD,
+    O_SUBTRACT,
+    O_MULTIPLY,
+    O_DIVIDE,
+} Operator;
+
 typedef struct {
     u32 count;
     char* chars;
@@ -22,7 +30,7 @@ typedef struct {
         Identifier identifier;
         struct {
             u64 constant;
-            char operator;
+            Operator operator;
         };
     };
 } Action;
@@ -34,7 +42,7 @@ typedef struct {
     Action* actions;
 } ActionSequence;
 
-GenericStatus actions_action_sequence_build(ActionSequence* sequence, const char* source);
+GenericStatus actions_action_sequence_build(ActionSequence* sequence, u32 start, const char* source);
 void actions_action_sequence_clean(ActionSequence* sequence);
 
 #endif

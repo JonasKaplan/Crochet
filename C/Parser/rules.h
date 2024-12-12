@@ -12,7 +12,7 @@ typedef struct {
     ActionSequence** rules;
 } RuleSet;
 
-GenericStatus rules_rule_set_build(RuleSet* set, const LineSequence* source, u32* last_line_index);
+GenericStatus rules_rule_set_build(RuleSet* set, const LineSequence* source, u32 start, u32* last_line_index);
 void rules_rule_set_clean(RuleSet* set);
 
 const ActionSequence* rules_rule_set_get(const RuleSet* set, u64 id);

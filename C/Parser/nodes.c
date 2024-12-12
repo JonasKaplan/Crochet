@@ -1,12 +1,11 @@
 #include "nodes.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <stdio.h>
-
 static u8 hash(const char* str) {
-    // Very very nieve, improve later
+    // Very very naive, improve later
     u32 i;
     u8 result;
 
@@ -63,6 +62,7 @@ GenericStatus nodes_node_set_build(NodeSet* set, const LineSequence* sequence) {
         }
         if (!is_alpha(line->chars[0])) {
             nodes_node_set_clean(set);
+            fprintf(stderr, "Expected node name near line %u\n", line_index);
             return GS_BAD_INPUT;
         }
         count = 0;
@@ -71,20 +71,18 @@ GenericStatus nodes_node_set_build(NodeSet* set, const LineSequence* sequence) {
         }
         if (line->chars[count] != '\0') {
             nodes_node_set_clean(set);
+            fprintf(stderr, "Expected line break after node name near line %u\n", line_index);
             return GS_BAD_INPUT;
         }
         identifier = line->chars;
         node = nodes_node_set_get(set, identifier);
         if (node != NULL) {
             nodes_node_set_clean(set);
+            fprintf(stderr, "Encountered node redeclaration near line %u\n", line_index);
             return GS_BAD_INPUT;
         }
         node = node_set_find_open(set, identifier);
-        node->name = calloc(line->count + 1, sizeof(*node->name));
-        if (node->name == NULL) {
-            nodes_node_set_clean(set);
-            return GS_OUT_OF_MEMORY;
-        }
+        node->name = heap_array_M(*node->name, line->count + 1);
         strcpy(node->name, line->chars);
 
         ++line_index;
@@ -93,6 +91,7 @@ GenericStatus nodes_node_set_build(NodeSet* set, const LineSequence* sequence) {
         }
         if ((line_index == sequence->count) || (strcmp(sequence->lines[line_index].chars, "    spawn") != 0)) {
             nodes_node_set_clean(set);
+            fprintf(stderr, "Expected spawn block near line %u\n", line_index);
             return GS_BAD_INPUT;
         }
         ++line_index;
@@ -100,18 +99,23 @@ GenericStatus nodes_node_set_build(NodeSet* set, const LineSequence* sequence) {
             ++line_index;
         }
         sub_sequence = (LineSequence){.lines = &sequence->lines[line_index], .count = sequence->count - line_index};
-        status = rules_rule_set_build(&node->spawn_rules, &sub_sequence, &last_line_index);
-        if ((status != GS_OK) || (last_line_index == sequence->count)) {
+        status = rules_rule_set_build(&node->spawn_rules, &sub_sequence, line_index, &last_line_index);
+        line_index += last_line_index;
+        if (status != GS_OK) {
             nodes_node_set_clean(set);
             return status;
+        } else if (line_index == sequence->count) {
+            nodes_node_set_clean(set);
+            fprintf(stderr, "Expected pop block near line %u\n", line_index);
+            return GS_BAD_INPUT;
         }
-        line_index += last_line_index;
 
         while ((line_index != sequence->count) && (sequence->lines[line_index].count == 0)) {
             ++line_index;
         }
         if ((line_index == sequence->count) || (strcmp(sequence->lines[line_index].chars, "    pop") != 0)) {
             nodes_node_set_clean(set);
+            fprintf(stderr, "Expected pop block near line %u\n", line_index);
             return GS_BAD_INPUT;
         }
         ++line_index;
@@ -119,12 +123,12 @@ GenericStatus nodes_node_set_build(NodeSet* set, const LineSequence* sequence) {
             ++line_index;
         }
         sub_sequence = (LineSequence){.lines = &sequence->lines[line_index], .count = sequence->count - line_index};
-        status = rules_rule_set_build(&node->pop_rules, &sub_sequence, &last_line_index);
-        if ((status != GS_OK) || (last_line_index == sequence->count)) {
+        status = rules_rule_set_build(&node->pop_rules, &sub_sequence, line_index, &last_line_index);
+        line_index += last_line_index;
+        if (status != GS_OK) {
             nodes_node_set_clean(set);
             return status;
         }
-        line_index += last_line_index;
     }
 
     // Behold, the great nest
@@ -140,6 +144,7 @@ GenericStatus nodes_node_set_build(NodeSet* set, const LineSequence* sequence) {
                             for (m = 0; m < node->spawn_rules.rules[k][l].count; ++m) {
                                 if ((node->spawn_rules.rules[k][l].actions[m].type == AT_CALL) && (nodes_node_set_get(set, node->spawn_rules.rules[k][l].actions[m].identifier.chars) == NULL)) {
                                     nodes_node_set_clean(set);
+                                    fprintf(stderr, "Node \"%s\" is referenced but never defined\n", node->spawn_rules.rules[k][l].actions[m].identifier.chars);
                                     return GS_BAD_INPUT;
                                 }
                             }
@@ -151,6 +156,7 @@ GenericStatus nodes_node_set_build(NodeSet* set, const LineSequence* sequence) {
     }
     if (nodes_node_set_get(set, "origin") == NULL) {
         nodes_node_set_clean(set);
+        fprintf(stderr, "Source file has no origin\n");
         return GS_BAD_INPUT;
     }
     free(set->nodes[set->count]);
@@ -164,8 +170,12 @@ void nodes_node_set_clean(NodeSet* set) {
         for (i = 0; i < UINT8_MAX; ++i) {
             if (set->nodes[set->count][i].name != NULL) {
                 free(set->nodes[set->count][i].name);
-                rules_rule_set_clean(&set->nodes[set->count][i].spawn_rules);
-                rules_rule_set_clean(&set->nodes[set->count][i].pop_rules);
+                if (set->nodes[set->count][i].spawn_rules.rules != NULL) {
+                    rules_rule_set_clean(&set->nodes[set->count][i].spawn_rules);
+                }
+                if (set->nodes[set->count][i].pop_rules.rules != NULL) {
+                    rules_rule_set_clean(&set->nodes[set->count][i].pop_rules);
+                }
             }
         }
         free(set->nodes[set->count]);

@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static GenericStatus action_build(Action* action, const char* source) {
+static GenericStatus action_build(Action* action, u32 start, const char* source) {
     u32 count;
     u64 constant;
     char first_char, operator, buf[MAX_U64_STRING_LENGTH];
@@ -17,6 +17,7 @@ static GenericStatus action_build(Action* action, const char* source) {
     first_char = source[0];
     if (first_char == '!') {
         if (count != 1) {
+            fprintf(stderr, "Expected whitespace after `!` near line %u\n", start);
             return GS_BAD_INPUT;
         }
         action->type = AT_SHOW;
@@ -30,42 +31,70 @@ static GenericStatus action_build(Action* action, const char* source) {
         return GS_OK;
     }
 
-    if ((first_char == '+') || (first_char == '-') || (first_char == '*') || (first_char == '/')) {
-        operator = first_char;
-        source = &source[1];
-        --count;
-    } else {
-        operator = '=';
+    switch (first_char) {
+        case '+':
+            operator = O_ADD;
+            source = &source[1];
+            --count;
+        break;
+
+        case '-':
+            operator = O_SUBTRACT;
+            source = &source[1];
+            --count;
+        break;
+
+        case '*':
+            operator = O_MULTIPLY;
+            source = &source[1];
+            --count;
+        break;
+
+        case '/':
+            operator = O_DIVIDE;
+            source = &source[1];
+            --count;
+        break;
+
+        default:
+            operator = O_SET;
+        break;
     }
+
     action->operator = operator;
     if (source[0] == '@') {
         if (count != 1) {
+            fprintf(stderr, "Expected whitespace after `@` near line %u\n", start);
             return GS_BAD_INPUT;
         }
         action->type = AT_OPERATE_REF;
     } else if (source[0] == '&') {
         if (count != 1) {
+            fprintf(stderr, "Expected whitespace after `&` near line %u\n", start);
             return GS_BAD_INPUT;
         }
         action->type = AT_OPERATE_GET;
     } else if (is_digit(source[0])) {
         if (sscanf(source, "%lu", &constant) != 1) {
+            fprintf(stderr, "Bad numeric literal near line %u\n", start);
             return GS_BAD_INPUT;
         }
         memset(buf, 0, MAX_U64_STRING_LENGTH);
         sprintf(buf, "%lu", constant);
         if (strlen(buf) != count) {
+            fprintf(stderr, "Bad numeric literal near line %u\n", start);
             return GS_BAD_INPUT;
         }
         action->type = AT_OPERATE_CONST;
         action->constant = constant;
     } else {
+        fprintf(stderr, "Unexpected action character near line %u\n", start);
         return GS_BAD_INPUT;
     }
     return GS_OK;
 }
 
-GenericStatus actions_action_sequence_build(ActionSequence* sequence, const char* source) {
+GenericStatus actions_action_sequence_build(ActionSequence* sequence, u32 start, const char* source) {
     u32 i;
     GenericStatus status;
 
@@ -78,7 +107,7 @@ GenericStatus actions_action_sequence_build(ActionSequence* sequence, const char
             resize_array_M(*sequence->actions, sequence->actions, sequence->capacity, 2 * sequence->capacity);
             sequence->capacity *= 2;
         }
-        status = action_build(&sequence->actions[sequence->count], &source[i]);
+        status = action_build(&sequence->actions[sequence->count], start, &source[i]);
         if (status != GS_OK) {
             actions_action_sequence_clean(sequence);
             return status;
@@ -101,4 +130,5 @@ void actions_action_sequence_clean(ActionSequence* sequence) {
         }
     }
     free(sequence->actions);
+    sequence->actions = NULL;
 }
