@@ -2,6 +2,7 @@
 !/**/
 !*.*
 !Makefile
+!LICENSE
 
 .mypy_cache
 .vscode

@@ -1,0 +1,23 @@
+origin
+    spawn
+        _ -> random
+    pop
+        _ -> @ ! 0
+
+random
+    spawn
+        _ -> one two
+    pop
+        _ -> @
+
+one
+    spawn
+        _ -> 1
+    pop
+        _ -> @
+
+two
+    spawn
+        _ -> 2
+    pop
+        _ -> @
