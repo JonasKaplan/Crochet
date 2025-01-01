@@ -82,7 +82,7 @@ This program's behaviour is impossible to determine, because the order of execut
 
 ## Usage
 
-To use the Crochet language, include the header, first build the code using the provided Makefile. Then, either include the `C/crochet.h` header and link the created `libcrochet.a` file during compilation, or use the created executable, with the name of a `.cht` file to interpret.
+To use the Crochet language, first build the code using the provided Makefile. Then, either include the `C/crochet.h` header and link the created `libcrochet.a` file during compilation, or use the created executable, with the name of a `.cht` file to interpret.
 
 ## Credits
 
