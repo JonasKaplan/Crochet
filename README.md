@@ -1,6 +1,6 @@
 # Crochet
 
-Crochet is an interpreted, esoteric programming language. It is designed to have an extremely minimal, highly structured syntax, as well as a consistent modal of computation.
+Crochet is an experimental, interpreted programming language. It is designed to have an extremely minimal, highly structured syntax, as well as a consistent modal of computation.
 
 ## Language
 
